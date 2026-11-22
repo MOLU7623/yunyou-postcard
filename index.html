@@ -1,0 +1,196 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>云游山歌明信片</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { background: #111; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "微软雅黑", "Segoe UI", Roboto, sans-serif; padding: 20px; }
+
+    .stage { max-width: 430px; margin: 0 auto; min-height: calc(100dvh - 40px); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .cardbox { width: 100%; perspective: 1200px; }
+    .card { position: relative; width: 100%; padding-top: 64%; transform-style: preserve-3d; transition: transform .8s cubic-bezier(.4,.1,.2,1); cursor: pointer; }
+    .card.flipped { transform: rotateY(180deg); }
+    .face { position: absolute; inset: 0; border-radius: 16px; overflow: hidden; backface-visibility: hidden; box-shadow: 0 12px 36px rgba(0,0,0,.55); }
+    .front { background: #2a2a2a center/cover no-repeat; display: flex; align-items: center; justify-content: center; }
+    .front b { font-size: 26px; letter-spacing: 6px; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.7); }
+    .back { transform: rotateY(180deg); background: #fff; color: #222; padding: 20px; display: flex; flex-direction: column; }
+    .to { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+    .msg { font-size: 14px; line-height: 1.95; color: #555; white-space: pre-wrap; flex: 1; overflow: auto; word-break: break-word; }
+    .badge { position: absolute; right: 16px; bottom: 16px; font-size: 11px; color: #ff3b30; border: 1px solid #ff3b30; border-radius: 4px; padding: 2px 6px; }
+
+    .hint { margin-top: 26px; font-size: 13px; color: rgba(255,255,255,.55); text-align: center; line-height: 1.7; }
+    .foot { margin-top: 10px; font-size: 11px; color: rgba(255,255,255,.28); text-align: center; }
+    .backlink { margin-top: 18px; font-size: 13px; color: #07c160; text-decoration: none; }
+
+    #overlay { position: fixed; inset: 0; background: rgba(0,0,0,.93); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; text-align: center; padding: 24px; }
+    .play { width: 84px; height: 84px; border-radius: 50%; background: #07c160; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer; box-shadow: 0 0 26px rgba(7,193,96,.5); animation: pulse 1.6s infinite; }
+    @keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.06); opacity: .86; } }
+    #overlay p { margin-top: 18px; font-size: 15px; }
+
+    .head { font-size: 15px; font-weight: 700; letter-spacing: 2px; margin-bottom: 4px; text-align: center; }
+    .sub { font-size: 12px; color: #777; margin-bottom: 20px; text-align: center; }
+    .grid { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+    .item { display: flex; gap: 14px; align-items: center; background: #1c1c1c; border-radius: 14px; padding: 12px; text-decoration: none; color: #eee; }
+    .item img { width: 84px; height: 57px; object-fit: cover; border-radius: 8px; background: #2a2a2a; }
+    .item .m { font-size: 14px; font-weight: 600; }
+    .item .d { font-size: 12px; color: #888; margin-top: 5px; }
+    .mk { display: block; margin-top: 18px; text-align: center; padding: 14px; border-radius: 24px; background: #07c160; color: #fff; font-size: 14px; font-weight: 700; text-decoration: none; }
+    .empty { color: #777; font-size: 13px; text-align: center; line-height: 1.9; padding: 30px 0; }
+</style>
+</head>
+<body>
+
+    <div id="tip" class="stage" style="display:none;">
+        <div class="empty" id="tip-text"></div>
+    </div>
+
+    <!-- 单张明信片 -->
+    <div id="stage-card" class="stage" style="display:none;">
+        <div id="overlay">
+            <div class="play" id="play">▶</div>
+            <p>点击开启山歌明信片</p>
+        </div>
+        <div class="cardbox">
+            <div class="card" id="card">
+                <div class="face front" id="front"><b>云游山歌</b></div>
+                <div class="face back">
+                    <div class="to" id="to"></div>
+                    <div class="msg" id="msg"></div>
+                    <div class="badge">扫码听山歌</div>
+                </div>
+            </div>
+        </div>
+        <div class="hint" id="hint">🔄 点击卡片翻转查看寄语</div>
+        <address class="foot">云游山歌 · 数字明信片</address>
+        <a class="backlink" href="./">看其他作品 ›</a>
+        <a class="backlink" href="./create.html">✍️ 我也做一张 ›</a>
+    </div>
+
+    <!-- 作品集 -->
+    <div id="stage-list" class="stage" style="display:none;">
+        <div class="head">云游山歌</div>
+        <div class="sub">数字明信片 · 作品集</div>
+        <div class="grid" id="grid"></div>
+        <a class="mk" href="./create.html">✍️ 我也做一张明信片</a>
+    </div>
+
+    <audio id="bgm" preload="auto" loop playsinline>
+        <source src="./shange.mp3" type="audio/mpeg">
+        <source src="./shange.wav" type="audio/wav">
+    </audio>
+
+<script>
+(function () {
+    'use strict';
+
+    var bgm = document.getElementById('bgm');
+
+    function showTip(html) {
+        document.getElementById('stage-card').style.display = 'none';
+        document.getElementById('stage-list').style.display = 'none';
+        document.getElementById('tip-text').innerHTML = html;
+        document.getElementById('tip').style.display = 'flex';
+    }
+
+    /* ---------- 单张明信片 ---------- */
+    function renderCard(d) {
+        document.getElementById('to').textContent = 'To: ' + (d.to || '远方的人');
+        document.getElementById('msg').textContent = d.msg || '愿你听到这首山歌。';
+        var img = d.img || '';
+        if (img) {
+            /* img 可能是 "xxx.jpg"（相对 data 目录），也可能是完整 http 地址 */
+            var src = /^https?:\/\//i.test(img) ? img : './data/' + img;
+            var pic = new Image();
+            pic.onload = function () {
+                document.getElementById('front').style.backgroundImage = 'url("' + src + '")';
+            };
+            pic.onerror = function () {
+                document.getElementById('front').style.backgroundImage = 'url("' + src + '")';
+            };
+            pic.src = src;
+        }
+        document.getElementById('stage-card').style.display = 'flex';
+    }
+
+    function loadCard(id) {
+        fetch('./data/' + id + '.json', { cache: 'no-store' })
+            .then(function (res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .then(renderCard)
+            .catch(function (err) {
+                console.error(err);
+                showTip('这张明信片还没发布到这台服务器。<br>可能是 data 文件夹没上传，或者链接里的编号不对。');
+            });
+    }
+
+    /* ---------- 作品集 ---------- */
+    function loadList() {
+        fetch('./data/index.json', { cache: 'no-store' })
+            .then(function (res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .then(function (raw) {
+                var list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+                var grid = document.getElementById('grid');
+                if (!list.length) {
+                    showTip('作品集还是空的。<br>先在制作端发布几张明信片，再把 data 文件夹上传上来。');
+                    return;
+                }
+                list.forEach(function (w) {
+                    var a = document.createElement('a');
+                    a.className = 'item';
+                    a.href = '?id=' + encodeURIComponent(w.id);
+                    var im = document.createElement('img');
+                    im.src = './data/' + (w.thumb || (w.id + '.jpg'));
+                    im.alt = '';
+                    im.loading = 'lazy';
+                    var box = document.createElement('div');
+                    var m = document.createElement('div');
+                    m.className = 'm';
+                    m.textContent = '寄给：' + (w.to || '远方的人');
+                    var dd = document.createElement('div');
+                    dd.className = 'd';
+                    dd.textContent = w.date || '';
+                    box.appendChild(m); box.appendChild(dd);
+                    a.appendChild(im); a.appendChild(box);
+                    grid.appendChild(a);
+                });
+                document.getElementById('stage-list').style.display = 'flex';
+            })
+            .catch(function (err) {
+                console.error(err);
+                showTip('读不到作品集。<br>请确认 data 文件夹（含 index.json）已经从上传到本站根目录。');
+            });
+    }
+
+    /* ---------- 交互 ---------- */
+    document.getElementById('play').addEventListener('click', function () {
+        document.getElementById('overlay').style.display = 'none';
+        var p = bgm.play();
+        if (p && p.catch) {
+            p.catch(function () {
+                document.getElementById('hint').textContent = '音频没加载出来，把 shange.mp3 或 shange.wav 放到本站根目录即可';
+            });
+        }
+    });
+
+    document.getElementById('card').addEventListener('click', function () {
+        var c = document.getElementById('card');
+        c.classList.toggle('flipped');
+        document.getElementById('hint').textContent = c.classList.contains('flipped')
+            ? '🔄 点击卡片翻回正面'
+            : '🔄 点击卡片翻转查看寄语';
+    });
+
+    /* ---------- 启动 ---------- */
+    var id = (new URLSearchParams(location.search).get('id') || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (id) { loadCard(id); } else { loadList(); }
+})();
+</script>
+</body>
+</html>

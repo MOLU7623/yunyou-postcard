@@ -1,0 +1,265 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>我也做一张 · 云游山歌明信片</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { background: #111; color: #eee; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "微软雅黑", "Segoe UI", Roboto, sans-serif; padding: 22px 18px 40px; }
+    .wrap { max-width: 430px; margin: 0 auto; }
+
+    h1 { font-size: 19px; font-weight: 700; letter-spacing: 1px; text-align: center; }
+    .sub { font-size: 12px; color: #888; text-align: center; margin: 8px 0 22px; line-height: 1.7; }
+
+    .cardbox { width: 100%; perspective: 1200px; }
+    .card { position: relative; width: 100%; padding-top: 64%; transform-style: preserve-3d; transition: transform .8s cubic-bezier(.4,.1,.2,1); cursor: pointer; }
+    .card.flipped { transform: rotateY(180deg); }
+    .face { position: absolute; inset: 0; border-radius: 16px; overflow: hidden; backface-visibility: hidden; box-shadow: 0 12px 34px rgba(0,0,0,.5); }
+    .front { background: #242424 center/cover no-repeat; display: flex; align-items: center; justify-content: center; }
+    .front span { font-size: 15px; color: rgba(255,255,255,.72); text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+    .back { transform: rotateY(180deg); background: #fff; color: #222; padding: 20px; display: flex; flex-direction: column; }
+    .to { font-size: 16px; font-weight: 700; margin-bottom: 12px; word-break: break-all; }
+    .msg { font-size: 14px; line-height: 1.95; color: #555; white-space: pre-wrap; flex: 1; overflow: auto; word-break: break-word; }
+    .badge { position: absolute; right: 16px; bottom: 16px; font-size: 11px; color: #ff3b30; border: 1px solid #ff3b30; border-radius: 4px; padding: 2px 6px; }
+
+    .hint { text-align: center; font-size: 12px; color: #777; margin: 14px 0 24px; }
+
+    .pick { display: flex; align-items: center; justify-content: center; height: 54px; border: 1px dashed #3a3a3a; border-radius: 14px; background: #1a1a1a; color: #07c160; font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 14px; }
+    .pick input { display: none; }
+
+    .field { width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; color: #eee; font-size: 14px; padding: 13px 14px; margin-bottom: 12px; font-family: inherit; }
+    .field::placeholder { color: #666; }
+    textarea.field { min-height: 92px; resize: none; line-height: 1.7; }
+
+    .row { display: flex; gap: 10px; margin-top: 6px; }
+    .btn { flex: 1; height: 50px; border: none; border-radius: 25px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .btn-main { background: #07c160; color: #fff; }
+    .btn-ghost { background: #232323; color: #ddd; }
+
+    .result { margin-top: 22px; text-align: center; display: none; }
+    .result img { width: 100%; border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+    .result p { font-size: 12px; color: #07c160; margin-top: 12px; line-height: 1.7; }
+
+    .foot { margin-top: 30px; text-align: center; }
+    .foot a { color: #666; font-size: 12px; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <h1>做一张自己的明信片</h1>
+    <p class="sub">照片只在你的手机里处理，不会上传到任何服务器</p>
+
+    <div class="cardbox">
+        <div class="card" id="card">
+            <div class="face front" id="front"><span id="frontHint">↓ 先选一张照片</span></div>
+            <div class="face back">
+                <div class="to" id="pvTo">To: </div>
+                <div class="msg" id="pvMsg">在这里写下你的寄语…</div>
+                <div class="badge">云游山歌</div>
+            </div>
+        </div>
+    </div>
+    <div class="hint">👆 点一下卡片可以翻转看背面</div>
+
+    <label class="pick">
+        <input type="file" id="file" accept="image/*">
+        ＋ 选一张照片
+    </label>
+
+    <input class="field" id="to" type="text" placeholder="写给谁？（10 字以内）" maxlength="10">
+    <textarea class="field" id="msg" placeholder="写一句寄语（30 字以内）" maxlength="30"></textarea>
+
+    <div class="row">
+        <button class="btn btn-main" id="save">保存成图片</button>
+        <button class="btn btn-ghost" id="play">▶ 听山歌</button>
+    </div>
+
+    <div class="result" id="result">
+        <img id="resultImg" alt="">
+        <p id="resultTip">长按上面的图片 → 保存到相册</p>
+    </div>
+
+    <div class="foot"><a href="./">‹ 返回作品集</a></div>
+</div>
+
+<audio id="bgm" preload="auto" loop playsinline>
+    <source src="./shange.mp3" type="audio/mpeg">
+    <source src="./shange.wav" type="audio/wav">
+</audio>
+
+<script>
+(function () {
+    'use strict';
+
+    var photo = null;                 // 解码后的 Image 对象
+    var card = document.getElementById('card');
+    var front = document.getElementById('front');
+    var frontHint = document.getElementById('frontHint');
+    var pvTo = document.getElementById('pvTo');
+    var pvMsg = document.getElementById('pvMsg');
+
+    /* ---------- 选照片 ---------- */
+    document.getElementById('file').addEventListener('change', function (e) {
+        var f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!f) return;
+        var url = URL.createObjectURL(f);
+        var im = new Image();
+        im.onload = function () {
+            photo = im;
+            front.style.backgroundImage = 'url("' + url + '")';
+            frontHint.style.display = 'none';
+            URL.revokeObjectURL(url);
+        };
+        im.onerror = function () {
+            URL.revokeObjectURL(url);
+            alert('这张图片读不出来，换一张试试');
+        };
+        im.src = url;
+    });
+
+    /* ---------- 实时预览 ---------- */
+    function sync() {
+        pvTo.textContent = 'To: ' + (document.getElementById('to').value.trim() || '远方的人');
+        pvMsg.textContent = document.getElementById('msg').value.trim() || '在这里写下你的寄语…';
+    }
+    document.getElementById('to').addEventListener('input', sync);
+    document.getElementById('msg').addEventListener('input', sync);
+
+    card.addEventListener('click', function () {
+        card.classList.toggle('flipped');
+    });
+
+    /* ---------- 播放山歌 ---------- */
+    document.getElementById('play').addEventListener('click', function () {
+        var bgm = document.getElementById('bgm');
+        if (!bgm.paused) { bgm.pause(); this.textContent = '▶ 听山歌'; return; }
+        var p = bgm.play();
+        this.textContent = '❚❚ 暂停';
+        var self = this;
+        if (p && p.then) {
+            p.then(function () { }).catch(function () {
+                self.textContent = '▶ 听山歌';
+                alert('音频没加载出来，需要 shange.mp3 或 shange.wav 在站点根目录');
+            });
+        }
+    });
+
+    /* ---------- 文字换行 ---------- */
+    function wrapText(ctx, text, maxWidth, lineHeight, x, y) {
+        var lines = [];
+        var cur = '';
+        for (var i = 0; i < text.length; i++) {
+            var ch = text.charAt(i);
+            if (ch === '\n') { lines.push(cur); cur = ''; continue; }
+            var test = cur + ch;
+            if (ctx.measureText(test).width > maxWidth) { lines.push(cur); cur = ch; }
+            else { cur = test; }
+        }
+        lines.push(cur);
+        for (var k = 0; k < lines.length; k++) {
+            ctx.fillText(lines[k], x, y + k * lineHeight);
+        }
+        return y + lines.length * lineHeight;
+    }
+
+    /* ---------- 合成图片 ---------- */
+    function compose() {
+        var W = 1080, FH = 720, GAP = 40, BH = 740;
+        var H = FH + GAP + BH;
+        var cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        var ctx = cv.getContext('2d');
+
+        /* 正面：照片按 cover 方式铺满 */
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, W, H);
+        if (photo) {
+            var scale = Math.max(W / photo.width, FH / photo.height);
+            var dw = photo.width * scale, dh = photo.height * scale;
+            ctx.drawImage(photo, (W - dw) / 2, (FH - dh) / 2, dw, dh);
+        } else {
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(0, 0, W, FH);
+        }
+        /* 正面压一层暗角，让白色标题更清晰 */
+        var grad = ctx.createLinearGradient(0, 0, 0, FH);
+        grad.addColorStop(0, 'rgba(0,0,0,.28)');
+        grad.addColorStop(.5, 'rgba(0,0,0,.12)');
+        grad.addColorStop(1, 'rgba(0,0,0,.4)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, FH);
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 46px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0,0,0,.65)';
+        ctx.shadowBlur = 18;
+        ctx.fillText('云 游 山 歌', W / 2, FH / 2 + 16);
+        ctx.shadowBlur = 0;
+
+        /* 背面：白卡 */
+        var by = FH + GAP;
+        ctx.fillStyle = '#f7f4ec';
+        ctx.fillRect(0, by, W, BH);
+        ctx.strokeStyle = '#ddd';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, by + 1, W - 2, BH - 2);
+
+        ctx.textAlign = 'left';
+        var pad = 72;
+        var y = by + 110;
+
+        ctx.fillStyle = '#1a1a1a';
+        ctx.font = 'bold 46px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+        ctx.fillText('To: ' + (document.getElementById('to').value.trim() || '远方的人'), pad, y);
+
+        y += 74;
+        ctx.fillStyle = '#4a4a4a';
+        ctx.font = '36px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+        var msg = document.getElementById('msg').value.trim() || '愿你听到这首山歌。';
+        y = wrapText(ctx, msg, W - pad * 2, 62, pad, y);
+
+        /* 底部小字 */
+        ctx.fillStyle = '#bbb';
+        ctx.font = '26px -apple-system, "PingFang SC", sans-serif';
+        ctx.fillText('云游山歌 · 数字明信片', pad, by + BH - 52);
+
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#ff3b30';
+        ctx.font = '26px -apple-system, "PingFang SC", sans-serif';
+        ctx.fillText('扫码听山歌', W - pad, by + BH - 52);
+
+        return cv;
+    }
+
+    /* ---------- 保存 ---------- */
+    document.getElementById('save').addEventListener('click', function () {
+        if (!photo) { alert('先选一张照片吧'); return; }
+        var cv = compose();
+        var dataUrl = cv.toDataURL('image/jpeg', 0.92);
+
+        var box = document.getElementById('result');
+        var img = document.getElementById('resultImg');
+        img.src = dataUrl;
+        box.style.display = 'block';
+
+        /* 同时尝试直接下载（部分浏览器/微信不支持，所以保留长按保存提示） */
+        try {
+            var a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = 'yunyou-postcard.jpg';
+            a.click();
+            document.getElementById('resultTip').textContent = '已尝试生成文件；如果没存到相册，就长按上面的图片保存';
+        } catch (e) {
+            document.getElementById('resultTip').textContent = '长按上面的图片 → 保存到相册';
+        }
+
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+})();
+</script>
+</body>
+</html>
