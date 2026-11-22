@@ -99,6 +99,7 @@
     'use strict';
 
     var photo = null;
+    var frontUrl = null;   // 预览用的 blob 地址，必须保活，提前 revoke 会导致手机端不显示
     var lastBlob = null;
     var card = document.getElementById('card');
     var front = document.getElementById('front');
@@ -120,13 +121,17 @@
         var im = new Image();
         im.onload = function () {
             photo = im;
+            if (frontUrl) { try { URL.revokeObjectURL(frontUrl); } catch (e) { } }
+            frontUrl = url;                       /* 保活：不立刻 revoke，否则手机端背景图加载不到 */
             front.style.backgroundImage = 'url("' + url + '")';
             frontHint.style.display = 'none';
-            URL.revokeObjectURL(url);
+            card.classList.remove('flipped');     /* 自动翻回正面，让人立刻看见照片 */
+            if (typeof lastBlob !== 'undefined') lastBlob = null;
         };
         im.onerror = function () {
+            /* 失败才需要回收 */
             URL.revokeObjectURL(url);
-            alert('这张图片读不出来，换一张试试');
+            alert('这张照片读不出来（常见于 iPhone 的 HEIC / 实况照片，或超大原图）。\n\n办法：在相册里打开这张，截个图再用截图；或者先导出成 JPG 再选。');
         };
         im.src = url;
     });
