@@ -177,7 +177,7 @@
             .then(renderCard)
             .catch(function (err) {
                 console.error(err);
-                showTip('这张明信片还没发布到这台服务器。<br>可能是 data 文件夹没上传，或者链接里的编号不对。');
+                showTip('找不到这张明信片。<br>可能已经被删掉了，或者链接里的编号不对。');
             });
     }
 
@@ -193,7 +193,7 @@
                 var list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
                 var grid = document.getElementById('grid');
                 if (!list.length) {
-                    showTip('作品集还是空的。<br>先在制作端发布几张明信片，再把 data 文件夹上传上来。');
+                    showTip('作品集还是空的。<br>去制作端做一张、点「导出二维码」，这里就会自动出现。');
                     return;
                 }
                 list.forEach(function (w) {
@@ -229,7 +229,7 @@
             })
             .catch(function (err) {
                 console.error(err);
-                showTip('读不到作品集。<br>请确认 data 文件夹（含 index.json）已经从上传到本站根目录。');
+                showTip('读不到作品集。<br>检查一下网络，稍后刷新再试。');
             });
     }
 
