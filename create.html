@@ -20,7 +20,11 @@
     .front { opacity: 1; background: #242424 center/cover no-repeat; display: flex; align-items: center; justify-content: center; }
     .front span { font-size: 15px; color: rgba(255,255,255,.72); text-shadow: 0 2px 10px rgba(0,0,0,.6); }
     .back { opacity: 0; pointer-events: none; background: #fff; color: #222; padding: 20px; display: flex; flex-direction: column; }
-    .to { font-size: 16px; font-weight: 700; margin-bottom: 12px; word-break: break-all; }
+    .to { font-size: 16px; font-weight: 700; margin-bottom: 12px; word-break: break-all; padding-right: 84px; }
+    /* 背面右上角：山歌二维码（红框里，扫码直接听） */
+    .songqr { position: absolute; right: 14px; top: 12px; width: 68px; height: 80px; border: 2px solid #ff3b30; border-radius: 6px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; overflow: hidden; }
+    .songqr canvas { width: 52px; height: 52px; display: block; }
+    .songqr i { font-style: normal; font-size: 9px; color: #ff3b30; line-height: 1; }
     .msg { font-size: 14px; line-height: 1.95; color: #555; white-space: pre-wrap; flex: 1; overflow: auto; word-break: break-word; }
     .badge { position: absolute; right: 16px; bottom: 16px; font-size: 11px; color: #ff3b30; border: 1px solid #ff3b30; border-radius: 4px; padding: 2px 6px; }
 
@@ -60,6 +64,7 @@
             <div class="face back">
                 <div class="to" id="pvTo">To: </div>
                 <div class="msg" id="pvMsg">在这里写下你的寄语…</div>
+                <div class="songqr" id="songQRBox"><canvas id="songQRcv"></canvas><i>听山歌</i></div>
                 <div class="badge">云游山歌</div>
             </div>
         </div>
@@ -110,6 +115,12 @@
     /* 站点根地址：成品图里的二维码就指向这里 */
     var SITE = location.origin + location.pathname.replace(/[^\/]*$/, '');
 
+    /* 山歌播放链接：默认站点里的 song.html，可用 ?song=xxxx 换一个 */
+    var SONG = (function () {
+        var m = /(?:^|[?&])song=([^&]+)/.exec(location.search);
+        return m ? decodeURIComponent(m[1]) : (SITE + 'song.html');
+    })();
+
     var IS_WECHAT = /MicroMessenger/i.test(navigator.userAgent);
 
     /* ---------- 选照片 ---------- */
@@ -135,6 +146,27 @@
         };
         im.src = url;
     });
+
+    /* ---------- 背面红框里画山歌码 ---------- */
+    function paintSongQR() {
+        var cv = document.getElementById('songQRcv');
+        if (!cv || typeof qrcode !== 'function') return;
+        var q;
+        try { q = qrcode(0, 'M'); q.addData(SONG); q.make(); } catch (e) { return; }
+        var n = q.getModuleCount(), margin = 2;
+        var m = Math.max(1, Math.floor(220 / (n + margin * 2)));
+        var size = m * (n + margin * 2);
+        cv.width = cv.height = size;
+        var ctx = cv.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, size, size);
+        ctx.fillStyle = '#111';
+        for (var r = 0; r < n; r++) {
+            for (var c = 0; c < n; c++) {
+                if (q.isDark(r, c)) ctx.fillRect((c + margin) * m, (r + margin) * m, m, m);
+            }
+        }
+    }
+    paintSongQR();
 
     /* ---------- 实时预览 ---------- */
     function sync() {
@@ -250,6 +282,19 @@
         ctx.font = '34px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
         var msg = document.getElementById('msg').value.trim() || '愿你听到这首山歌。';
         wrapText(ctx, msg, W - pad * 2 - 210, 58, pad, y);
+
+        /* 背面右上角：山歌二维码（红框位置，和电脑端一致） */
+        var sqx = W - pad - 164, sqy = by + 34, sqs = 164;
+        var songDrawn = drawQR(ctx, SONG, sqx + 8, sqy + 8, sqs - 16);
+        if (songDrawn > 0) {
+            ctx.strokeStyle = '#ff3b30';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(sqx, sqy, sqs, sqs);
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#ff3b30';
+            ctx.font = '22px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText('扫码听山歌', sqx + sqs, sqy + sqs + 28);
+        }
 
         /* 右下角真二维码 */
         var qs = drawQR(ctx, SITE, W - pad - 176, by + BH - 80 - 176, 176);
