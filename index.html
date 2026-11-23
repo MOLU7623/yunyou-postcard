@@ -99,7 +99,9 @@
             .then(function (b) { setFront(URL.createObjectURL(b)); })
             .catch(function () {
                 if (/^https?:\/\//i.test(name)) throw new Error('remote');
-                return ghRead('data/' + name).then(function (b64) { setFront('data:image/jpeg;base64,' + b64); });
+                return ghRead('data/' + name).then(function (b64) {
+                    setFront('data:image/jpeg;base64,' + b64.replace(/\s+/g, ''));
+                });
             })
             .catch(function () { setFront(direct); });
     }
@@ -120,6 +122,7 @@
         return { owner: owner, repo: repo, branch: 'main' };
     })();
 
+    /* 返回仓库里这个文件的【原始 base64】（照片直接用，别解码） */
     function ghRead(path) {
         if (!GH) return Promise.reject(new Error('not-github-pages'));
         var url = 'https://api.github.com/repos/' + GH.owner + '/' + GH.repo +
@@ -131,12 +134,24 @@
             })
             .then(function (j) {
                 if (!j || !j.content) throw new Error('empty');
-                return atob(String(j.content).replace(/\s+/g, ''));
+                return String(j.content).replace(/\s+/g, '');
             });
     }
 
+    /* base64 → 正确 UTF-8 文本（中文不乱码） */
+    function b64ToUtf8(b64) {
+        var raw = atob(b64);
+        try {
+            var bytes = new Uint8Array(raw.length);
+            for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+            return new TextDecoder('utf-8').decode(bytes);
+        } catch (e) {
+            return decodeURIComponent(escape(raw));
+        }
+    }
+
     function ghReadJSON(path) {
-        return ghRead(path).then(function (t) { return JSON.parse(t); });
+        return ghRead(path).then(function (b64) { return JSON.parse(b64ToUtf8(b64)); });
     }
 
     /* ---------- 单张明信片 ---------- */
@@ -193,7 +208,7 @@
                             if (this.dataset && this.dataset.tried) return;
                             if (this.dataset) this.dataset.tried = '1';
                             ghRead('data/' + name).then(function (b64) {
-                                im.src = 'data:image/jpeg;base64,' + b64;
+                                im.src = 'data:image/jpeg;base64,' + b64.replace(/\s+/g, '');
                             }).catch(function () { });
                         };
                     })(thumbName);
